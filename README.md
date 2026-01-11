@@ -16,14 +16,14 @@ For building a patch the following programes must to installed and added to your
 sha512sum, zip, unzip, wget and Java Runtime Environment (JRE)
 
 Enable ABD access in Frameo settings -> About. Enable Beta Program first to make the toggle for ADB access visibile.
-
+```
 Usage: pexar_installer [options] <package.apk> | --no-install
 
 Options:
     -a, --adb <adb>                Path to Android Debug Bridge executable, defaults to adb in current dir
     -p, --patch <services.jar>     Install using pre-build services.jar patch, if none given script will build one
     --no-install                   Don't install an app, only build patch
-
+```
 When using a pre-build patch, this script will verify the SHA512 checksum and device fingerprint found in <services.jar>.verify
 This file is auto-generated when building a patch and needs to be in the same directory as the patched <services.jar>
 
