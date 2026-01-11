@@ -27,5 +27,8 @@ Options:
 When using a pre-build patch, this script will verify the SHA512 checksum and device fingerprint found in <services.jar>.verify
 This file is auto-generated when building a patch and needs to be in the same directory as the patched <services.jar>
 
-*I included a pre-built services_patched.jar based on my own Pexar 2K frame with build fingerprint Lexar/PX-110/dpf1106_mk_32:11/RP1A.200720.011/PF1106_V2.06_20250527:user/release-keys
-If your device has the same android build fingerpint you don´t have to build your own services_patched.jar *
+*I included a pre-built services_patched.jar based on my own device with build fingerprint:* 
+```
+ Lexar/PX-110/dpf1106_mk_32:11/RP1A.200720.011/PF1106_V2.06_20250527:user/release-keys
+```
+*If your device has the same Android build fingerpint you don´t have to build your own; you can use the included one* 
