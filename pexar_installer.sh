@@ -4,6 +4,9 @@
 # Version: 1.1
 # Release: 17/11/2024
 
+# Abort on the first failed step instead of pushing a half-built jar to /system
+set -e
+
 # GLOBALS
 SMALI="https://bitbucket.org/JesusFreke/smali/downloads/smali-2.5.2.jar"
 BAKSMALI="https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.5.2.jar"
@@ -54,7 +57,7 @@ build_patch () {
 
     echo "Downloading smali.jar from ${SMALI}"
     wget -q --show-progress $SMALI -O tmp/smali.jar
-    echo "Downloading baksmali.jar from ${SMALI}"
+    echo "Downloading baksmali.jar from ${BAKSMALI}"
     wget -q --show-progress $BAKSMALI -O tmp/baksmali.jar
 
     echo "Pulling services.jar containing PackageManagerService... "
@@ -72,7 +75,12 @@ build_patch () {
         exit 1
     fi
     BEGIN=$(grep -n "\.method private isSystemApp(Ljava/lang/String;)Z" services_smali/com/android/server/pm/PackageManagerService.smali | cut -d ":" -f 1)
-    END=$(grep -n -A100 "\.method private isSystemApp(Ljava/lang/String;)Z" services_smali/com/android/server/pm/PackageManagerService.smali | grep "end method" | cut -d "-" -f 1)
+    # First .end method after BEGIN, however long the method is
+    END=$(awk -v begin="$BEGIN" 'NR > begin && /^\.end method/ { print NR; exit }' services_smali/com/android/server/pm/PackageManagerService.smali)
+    if [[ -z "$BEGIN" || -z "$END" ]]; then
+        echo "Could not locate isSystemApp() in PackageManagerService.smali, aborting"
+        exit 1
+    fi
 
     cd services_smali/com/android/server/pm/
 
@@ -139,9 +147,28 @@ verify_patch () {
         exit 1
     fi
 }
+remote_file_size () {
+    $ADB shell stat -c %s "$1" | tr -d '\r'
+}
+
+check_system_space () {
+    local needed current free_kb
+    needed=$(stat -c %s "$JAR")
+    current=$(remote_file_size /system/framework/services.jar)
+    free_kb=$($ADB shell df -k /system/framework | tr -d '\r' | awk 'NR == 2 { print $4 }')
+    # cp overwrites in place, so the old jar's space becomes available too
+    if (( needed > free_kb * 1024 + current )); then
+        echo "Not enough space on /system for $JAR ($needed bytes), aborting before touching the device"
+        exit 1
+    fi
+}
+
 install_apk () {
+    JAR="${PATCH:-services_patched.jar}"
+
     echo "Preparing device for patch... "
     $ADB shell mount -o remount,rw /
+    check_system_space
 
     echo "Stopping Android system server..."
     $ADB shell stop
@@ -157,10 +184,14 @@ install_apk () {
 
     # Push patched jar to data partition first
     echo "Installing patch..."
-    $ADB push services_patched.jar /data/local/tmp/services.jar
+    $ADB push "$JAR" /data/local/tmp/services.jar
     # Copy to system framework
     echo "Ignore error messages of crashed applications; it's expected some 'Droids are a bit unhappy 'coz of our meddling :)"
     $ADB shell cp /data/local/tmp/services.jar /system/framework/services.jar
+    if [[ $(remote_file_size /system/framework/services.jar) != $(stat -c %s "$JAR") ]]; then
+        echo "Copied services.jar has the wrong size; restore your backup before rebooting, aborting"
+        exit 1
+    fi
     $ADB shell rm -f /data/local/tmp/services.jar
     echo "Restarting Android system server..."
     $ADB shell start

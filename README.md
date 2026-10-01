@@ -32,3 +32,11 @@ This file is auto-generated when building a patch and needs to be in the same di
  Lexar/PX-110/dpf1106_mk_32:11/RP1A.200720.011/PF1106_V2.06_20250527:user/release-keys
 ```
 *If your device has the same Android build fingerpint you don´t have to build your own; you can use the included one* 
+
+## Notes for firmware V2.08 (PF1106_V2.08_20251219)
+
+- The bundled `services_patched.jar` is built for V2.06. On other firmware, let the script build a patch (omit `-p`).
+- Changes to `/system` don't survive a reboot on this firmware: `mount -o remount,rw /` succeeds, but the writes never reach
+  storage (`dmesg`: `Buffer I/O error on dev dm-3 ... lost async page write`). After a reboot the original `services.jar` is back.
+- That is enough to install apps: the app is installed while the patch is active and stays installed after the reboot.
+  To install or update another app later, run the script again.
